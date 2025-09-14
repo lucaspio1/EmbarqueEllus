@@ -69,10 +69,14 @@ class _CadastroPulseirasScreenState extends State<CadastroPulseirasScreen> {
                                       if (!mounted) return;
 
                                       if (scannedResult != null && scannedResult is String) {
+                                        // Atualiza os dados localmente
                                         cadastroService.updateLocalData(passageiro, novaPulseira: scannedResult);
+
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(content: Text('Pulseira atualizada localmente! Sincronizando...')),
                                         );
+                                        // Força uma reconstrução da tela para garantir que o estado seja consistente.
+                                        setState(() {});
                                       }
                                     },
                                     icon: const Icon(Icons.qr_code_scanner),

@@ -38,15 +38,16 @@ class CadastroService {
 
         _pendentesDeSincronizacao.clear();
         _startSyncTimer();
-        print('Dados carregados para cadastro de pulseiras: $colegio. Timer de sincronização ativo.');
+        print('✅ [CadastroService] Dados carregados para cadastro de pulseiras: $colegio');
       } else {
         passageirosCadastro.value = [];
         _stopSyncTimer();
+        print('❌ [CadastroService] Erro ao buscar dados: ${response.statusCode}');
       }
     } catch (e) {
       passageirosCadastro.value = [];
       _stopSyncTimer();
-      print('Erro de conexão ao buscar dados: $e');
+      print('❌ [CadastroService] Erro de conexão ao buscar dados: $e');
     }
   }
 
@@ -59,7 +60,12 @@ class CadastroService {
     final listaJson = json.encode(lista.map((p) => p.toJson()).toList());
     await prefs.setString('passageiros_cadastro_json', listaJson);
 
-    print('Dados do cadastro de pulseiras e lista de passageiros salvos localmente.');
+    // 🔎 Debug
+    print("📌 [CadastroService] Dados salvos no local:");
+    print("   colegio_cadastro = $colegio");
+    print("   onibus_cadastro = $onibus");
+    print("   flowType_cadastro = pulseiras");
+    print("   passageiros_cadastro_json = ${lista.length} passageiros");
   }
 
   Future<void> loadLocalData(String colegio, String onibus) async {
@@ -78,14 +84,14 @@ class CadastroService {
         loadedList.forEach((passageiro) => passageiro.flowType = 'pulseiras');
         passageirosCadastro.value = loadedList;
 
-        print('Lista de passageiros carregada do armazenamento local para cadastro de pulseiras.');
+        print('✅ [CadastroService] Lista de passageiros carregada do armazenamento local.');
       } catch (e) {
-        print('Erro ao carregar lista de passageiros local para cadastro de pulseiras: $e');
+        print('❌ [CadastroService] Erro ao carregar lista local: $e');
         passageirosCadastro.value = [];
       }
     } else {
       passageirosCadastro.value = [];
-      print('Nenhuma lista de passageiros encontrada no armazenamento local para cadastro de pulseiras.');
+      print('⚠️ [CadastroService] Nenhuma lista encontrada no armazenamento local.');
     }
   }
 
@@ -104,13 +110,17 @@ class CadastroService {
       _pendentesDeSincronizacao.add(updatedPassageiro);
       _savePendingData();
 
-      saveLocalData(
-          _colegioSelecionado,
-          _onibusSelecionado,
-          currentList);
+      // 🔎 Debug
+      print("📌 [CadastroService] Pulseira atualizada para ${updatedPassageiro.nome}: ${updatedPassageiro.pulseira}");
 
-      print('Adicionado à lista de sincronização: ${updatedPassageiro.nome}');
-      print('Total de pendentes: ${_pendentesDeSincronizacao.length}');
+      saveLocalData(
+        _colegioSelecionado,
+        _onibusSelecionado,
+        currentList,
+      );
+
+      print('📌 [CadastroService] Adicionado à lista de sincronização: ${updatedPassageiro.nome}');
+      print('   Total pendentes: ${_pendentesDeSincronizacao.length}');
 
       if (_syncTimer == null || !_syncTimer!.isActive) {
         _startSyncTimer();
@@ -122,7 +132,7 @@ class CadastroService {
     final prefs = await SharedPreferences.getInstance();
     final pendingJson = json.encode(_pendentesDeSincronizacao.map((p) => p.toJson()).toList());
     await prefs.setString('pending_sync_data_cadastro', pendingJson);
-    print('Lista de sincronização para cadastro salva localmente.');
+    print('📌 [CadastroService] Lista de sincronização salva localmente (${_pendentesDeSincronizacao.length} itens).');
   }
 
   Future<void> _loadPendingData() async {
@@ -131,13 +141,14 @@ class CadastroService {
     if (pendingJson != null) {
       try {
         final List<dynamic> jsonData = json.decode(pendingJson);
-        _pendentesDeSincronizacao = List<Passageiro>.from(jsonData.map((json) => Passageiro.fromJson(json)));
-        print('Lista de sincronização para cadastro carregada do armazenamento local. Total: ${_pendentesDeSincronizacao.length}');
+        _pendentesDeSincronizacao = List<Passageiro>.from(
+            jsonData.map((json) => Passageiro.fromJson(json)));
+        print('📌 [CadastroService] Lista de sincronização carregada (${_pendentesDeSincronizacao.length} itens).');
         if (_pendentesDeSincronizacao.isNotEmpty) {
           _startSyncTimer();
         }
       } catch (e) {
-        print('Erro ao carregar lista de sincronização local para cadastro: $e');
+        print('❌ [CadastroService] Erro ao carregar lista de sincronização: $e');
         _pendentesDeSincronizacao.clear();
       }
     }
@@ -148,11 +159,13 @@ class CadastroService {
     _syncTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       _syncChanges();
     });
+    print('⏳ [CadastroService] Timer de sincronização iniciado.');
   }
 
   void _stopSyncTimer() {
     _syncTimer?.cancel();
     _syncTimer = null;
+    print('⏹️ [CadastroService] Timer de sincronização parado.');
   }
 
   Future<void> _syncChanges() async {
@@ -160,7 +173,7 @@ class CadastroService {
       _stopSyncTimer();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('pending_sync_data_cadastro');
-      print('Sincronização do cadastro concluída. Lista de pendentes limpa.');
+      print('✅ [CadastroService] Sincronização concluída, lista limpa.');
       return;
     }
 
@@ -187,19 +200,19 @@ class CadastroService {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData['status'] == 'sucesso') {
-          print('✅ Sincronização bem-sucedida para: ${passageiroParaSincronizar.nome}');
+          print('✅ [CadastroService] Sincronização ok: ${passageiroParaSincronizar.nome}');
         } else {
-          print('❌ Erro na API: ${responseData['mensagem']}');
+          print('❌ [CadastroService] Erro API: ${responseData['mensagem']}');
           _pendentesDeSincronizacao.add(passageiroParaSincronizar);
           _savePendingData();
         }
       } else if (response.statusCode == 302) {
-        print('⚠️ Redirecionamento 302 ignorar, sincronização considerada concluída para: ${passageiroParaSincronizar.nome}');
+        print('⚠️ [CadastroService] Redirecionamento 302 ignorado, sync considerado ok para ${passageiroParaSincronizar.nome}');
       } else {
         throw Exception('HTTP Error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Erro ao sincronizar dados: $e');
+      print('❌ [CadastroService] Erro ao sincronizar ${passageiroParaSincronizar.nome}: $e');
       _pendentesDeSincronizacao.add(passageiroParaSincronizar);
       _savePendingData();
     }

@@ -56,6 +56,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
           if (barcodes.isNotEmpty) {
             final barcode = barcodes.first.rawValue;
             if (barcode != null) {
+              // 🔎 Debug do código lido
+              print("📌 [ScannerScreen] Código lido: $barcode");
               Navigator.pop(context, barcode);
             }
           }

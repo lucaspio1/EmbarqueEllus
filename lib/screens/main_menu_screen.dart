@@ -25,12 +25,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   Future<void> _checkActiveSession() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Tentativa de carregar sessão de embarque
+    // Sessão de embarque
     final colegioEmbarqueSalvo = prefs.getString('colegio');
     final onibusEmbarqueSalvo = prefs.getString('onibus');
     final flowTypeEmbarqueSalvo = prefs.getString('flowType');
 
-    if (colegioEmbarqueSalvo != null && onibusEmbarqueSalvo != null && flowTypeEmbarqueSalvo == 'embarque') {
+    print("📌 [MainMenuScreen] Sessão embarque? "
+        "colegio=$colegioEmbarqueSalvo, "
+        "onibus=$onibusEmbarqueSalvo, "
+        "flowType=$flowTypeEmbarqueSalvo");
+
+    if (colegioEmbarqueSalvo != null &&
+        onibusEmbarqueSalvo != null &&
+        flowTypeEmbarqueSalvo == 'embarque') {
       await DataService().loadLocalData(colegioEmbarqueSalvo, onibusEmbarqueSalvo, 'embarque');
       final totalAlunos = DataService().passageirosEmbarque.value.length;
       if (mounted) {
@@ -48,12 +55,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       return; // Sessão de embarque encontrada, parar aqui.
     }
 
-    // Tentativa de carregar sessão de cadastro
+    // Sessão de cadastro
     final colegioCadastroSalvo = prefs.getString('colegio_cadastro');
     final onibusCadastroSalvo = prefs.getString('onibus_cadastro');
     final flowTypeCadastroSalvo = prefs.getString('flowType_cadastro');
 
-    if (colegioCadastroSalvo != null && onibusCadastroSalvo != null && flowTypeCadastroSalvo == 'pulseiras') {
+    print("📌 [MainMenuScreen] Sessão cadastro? "
+        "colegio=$colegioCadastroSalvo, "
+        "onibus=$onibusCadastroSalvo, "
+        "flowType_cadastro=$flowTypeCadastroSalvo");
+
+    if (colegioCadastroSalvo != null &&
+        onibusCadastroSalvo != null &&
+        flowTypeCadastroSalvo == 'pulseiras') {
       await CadastroService().loadLocalData(colegioCadastroSalvo, onibusCadastroSalvo);
       if (mounted) {
         Navigator.push(
