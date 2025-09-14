@@ -1,0 +1,136 @@
+// Função principal para lidar com requisições GET
+function doGet(e) {
+  var nomeDoColegio = e.parameter.colegio;
+  var nomeParaBuscar = e.parameter.nome;
+  var onibusParaFiltrar = e.parameter.onibus; // NOVO: Captura o parâmetro do ônibus
+  
+  // Se não houver parâmetro 'colegio', retorna a lista de todos os colégios
+  if (!nomeDoColegio) {
+    return listarColegios();
+  }
+  
+  var planilha = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nomeDoColegio);
+  if (!planilha) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ "status": "erro", "mensagem": "Colégio não encontrado." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var dados = planilha.getDataRange().getValues();
+  
+  if (nomeParaBuscar) {
+    // Busca por um passageiro específico
+    var pessoaEncontrada = null;
+    for (var i = 1; i < dados.length; i++) {
+      var linha = dados[i];
+      var nomeNaPlanilha = linha[2]; 
+      
+      if (nomeNaPlanilha && nomeNaPlanilha.toString().toLowerCase().trim() === nomeParaBuscar.toLowerCase().trim()) {
+        pessoaEncontrada = {
+          colegio: linha[0],
+          turma: linha[2],
+          nome: linha[3],
+          cpf: linha[4],
+          rg: linha[5],
+          embarque: linha[6],
+          pulseira: linha[7]
+         
+        };
+        break;
+      }
+    }
+    
+    return ContentService
+      .createTextOutput(JSON.stringify(pessoaEncontrada))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } else {
+    // Retorna todos os passageiros da aba do colégio, COM FILTRO DE ÔNIBUS
+    var listaPassageiros = [];
+    var totalAlunos = 0;
+    for (var i = 1; i < dados.length; i++) {
+      var linha = dados[i];
+      var onibusNaPlanilha = linha[1]; // A coluna do ônibus é a segunda, índice 1
+      
+      // Se houver um filtro de ônibus e ele corresponder, adicione à lista
+      if (!onibusParaFiltrar || (onibusNaPlanilha && onibusNaPlanilha.toString().toLowerCase().trim() === onibusParaFiltrar.toLowerCase().trim())) {
+        listaPassageiros.push({
+         colegio: linha[0],
+          turma: linha[2],
+          nome: linha[3],
+          cpf: linha[4],
+          rg: linha[5],
+          embarque: linha[6],
+          pulseira: linha[7]
+        });
+        totalAlunos++; // Incrementa a contagem de alunos
+      }
+    }
+
+    // Retorna os passageiros filtrados e o total de alunos
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        "colegio": nomeDoColegio,
+        "onibus": onibusParaFiltrar,
+        "totalAlunos": totalAlunos,
+        "passageiros": listaPassageiros
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Nova função para retornar os nomes de todas as abas
+function listarColegios() {
+  var planilhas = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  var nomes = planilhas.map(function(sheet) {
+    return sheet.getName();
+  });
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(nomes))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Função principal para lidar com requisições POST
+function doPost(e) {
+  var dadosDoCorpo = JSON.parse(e.postData.contents);
+  var nomeDoColegio = dadosDoCorpo.colegio; // Obtém o nome do colégio
+  
+  var planilha = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nomeDoColegio);
+  if (!planilha) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ "status": "erro", "mensagem": "Colégio não encontrado." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var dados = planilha.getDataRange().getValues();
+  var nomeParaAtualizar = dadosDoCorpo.nome;
+  var novoStatus = dadosDoCorpo.novoStatus;
+  var novaPulseira = dadosDoCorpo.novaPulseira;
+
+  var response;
+
+  for (var i = 1; i < dados.length; i++) {
+    var linha = dados[i];
+    var nomeNaPlanilha = linha[3];
+
+    if (nomeNaPlanilha && nomeNaPlanilha.toString().toLowerCase().trim() === nomeParaAtualizar.toLowerCase().trim()) {
+      if (novoStatus) {
+        planilha.getRange(i + 1, 6).setValue(novoStatus);
+        response = ContentService.createTextOutput(JSON.stringify({ "status": "sucesso", "mensagem": "Status atualizado com sucesso." })).setMimeType(ContentService.MimeType.JSON);
+      } else if (novaPulseira) {
+        planilha.getRange(i + 1, 7).setValue(novaPulseira);
+        response = ContentService.createTextOutput(JSON.stringify({ "status": "sucesso", "mensagem": "Pulseira atualizada com sucesso." })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        response = ContentService.createTextOutput(JSON.stringify({ "status": "erro", "mensagem": "Nenhum dado para atualizar." })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      response.setHeader('Access-Control-Allow-Origin', '*');
+      return response;
+    }
+  }
+
+  response = ContentService.createTextOutput(JSON.stringify({ "status": "erro", "mensagem": "Pessoa não encontrada." })).setMimeType(ContentService.MimeType.JSON);
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  return response;
+}
