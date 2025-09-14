@@ -194,7 +194,7 @@ class CadastroService {
           _savePendingData();
         }
       } else if (response.statusCode == 302) {
-        print('⚠️ Redirecionamento 302 ignorado, sincronização considerada concluída para: ${passageiroParaSincronizar.nome}');
+        print('⚠️ Redirecionamento 302 ignorar, sincronização considerada concluída para: ${passageiroParaSincronizar.nome}');
       } else {
         throw Exception('HTTP Error: ${response.statusCode}');
       }
