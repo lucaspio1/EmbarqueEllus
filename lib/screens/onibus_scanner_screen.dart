@@ -7,11 +7,9 @@ import 'package:embarque_app/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:embarque_app/models/passageiro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:embarque_app/screens/cadastro_pulseiras_screen.dart';
 
 class OnibusScannerScreen extends StatefulWidget {
-  final String? flowType;
-  const OnibusScannerScreen({super.key, this.flowType});
+  const OnibusScannerScreen({super.key});
 
   @override
   State<OnibusScannerScreen> createState() => _OnibusScannerScreenState();
@@ -28,7 +26,7 @@ class _OnibusScannerScreenState extends State<OnibusScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Escanear QR Code do Ônibus'),
+        title: const Text('Escanear QR Code - Embarque'),
         backgroundColor: const Color(0xFF4C643C),
         actions: [
           IconButton(
@@ -68,30 +66,30 @@ class _OnibusScannerScreenState extends State<OnibusScannerScreen> {
             onDetect: (capture) async {
               if (_isProcessing || _isNavigating) return;
               _isProcessing = true;
-              print('Scanner detectou um QR Code. Processando...');
+              print('📌 [OnibusScannerScreen] QR Code detectado para embarque');
 
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
                 final barcode = barcodes.first.rawValue;
                 if (barcode != null) {
-                  print('Valor do QR Code lido: $barcode');
+                  print('📌 [OnibusScannerScreen] Valor lido: $barcode');
                   final partes = barcode.split(';');
 
                   if (partes.length == 2) {
                     final colegio = partes[0];
                     final onibus = partes[1];
-                    print('Informações extraídas: Colégio=$colegio, Ônibus=$onibus');
+                    print('📌 [OnibusScannerScreen] Colégio=$colegio, Ônibus=$onibus');
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Carregando dados do colégio $colegio, ônibus $onibus...')),
                     );
 
-                    await _fetchDataAndNavigate(colegio, onibus, widget.flowType);
+                    await _fetchDataAndNavigate(colegio, onibus);
                   } else {
-                    print('ERRO: Formato do QR Code incorreto. Esperado: "colegio;onibus"');
+                    print('❌ [OnibusScannerScreen] Formato incorreto do QR Code');
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Formato do QR Code incorreto. Por favor, tente novamente.')),
+                      const SnackBar(content: Text('Formato do QR Code incorreto. Tente novamente.')),
                     );
                   }
                 }
@@ -110,65 +108,49 @@ class _OnibusScannerScreenState extends State<OnibusScannerScreen> {
     );
   }
 
-  Future<void> _fetchDataAndNavigate(String colegio, String onibus, String? flowType) async {
+  Future<void> _fetchDataAndNavigate(String colegio, String onibus) async {
     try {
-      print('Iniciando _fetchDataAndNavigate...');
+      print('📌 [OnibusScannerScreen] Iniciando fetch para embarque...');
 
       final prefs = await SharedPreferences.getInstance();
 
-      // CORREÇÃO: Limpar dados de sessão antigos para o outro fluxo
-      if (flowType == 'embarque') {
-        await prefs.remove('passageiros_cadastro_json');
-      } else {
-        await prefs.remove('passageiros_embarque_json');
-      }
+      // Limpar dados de cadastro se existirem
+      await prefs.remove('colegio_cadastro');
+      await prefs.remove('onibus_cadastro');
+      await prefs.remove('flowType_cadastro');
+      await prefs.remove('passageiros_cadastro_json');
 
-      await DataService().fetchData(colegio, flowType ?? 'embarque', onibus: onibus);
+      await DataService().fetchData(colegio, onibus: onibus);
 
       if (!mounted) {
-        print('Widget não está montado. Abortando navegação.');
+        print('⚠️ [OnibusScannerScreen] Widget não montado, abortando navegação');
         return;
       }
 
-      List<Passageiro> passageiros;
-      if (flowType == 'pulseiras') {
-        passageiros = DataService().passageirosCadastro.value;
-      } else {
-        passageiros = DataService().passageirosEmbarque.value;
-      }
+      List<Passageiro> passageiros = DataService().passageirosEmbarque.value;
       final totalAlunos = passageiros.length;
 
-      print('Dados do serviço de dados atualizados. Total de alunos: $totalAlunos');
+      print('✅ [OnibusScannerScreen] Dados carregados. Total: $totalAlunos alunos');
 
-      await prefs.setString('flowType', flowType ?? 'embarque');
-      await DataService().saveLocalData(colegio, onibus, flowType ?? 'embarque', passageiros);
+      await DataService().saveLocalData(colegio, onibus, passageiros);
 
       if (mounted && !_isNavigating) {
         _isNavigating = true;
-        if (flowType == 'pulseiras') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CadastroPulseirasScreen(colegio: colegio),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmbarqueScreen(
+              colegio: colegio,
+              onibus: onibus,
+              totalAlunos: totalAlunos,
             ),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EmbarqueScreen(
-                colegio: colegio,
-                onibus: onibus,
-                totalAlunos: totalAlunos,
-              ),
-            ),
-          );
-        }
+          ),
+        );
       }
 
     } catch (e) {
       if (!mounted) return;
-      print('ERRO DE CONEXÃO ou PARSE: $e');
+      print('❌ [OnibusScannerScreen] Erro: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro de conexão: $e')),
       );

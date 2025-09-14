@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:embarque_app/screens/onibus_scanner_screen.dart';
 import 'package:embarque_app/screens/selecao_colegio_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:embarque_app/services/data_service.dart';
@@ -25,138 +24,271 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   Future<void> _checkActiveSession() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Sessão de embarque
-    final colegioEmbarqueSalvo = prefs.getString('colegio');
-    final onibusEmbarqueSalvo = prefs.getString('onibus');
-    final flowTypeEmbarqueSalvo = prefs.getString('flowType');
+    // Verificar se estamos voltando de um scanner (não deve redirecionar automaticamente)
+    final isReturningFromScanner = prefs.getBool('returning_from_scanner') ?? false;
+    if (isReturningFromScanner) {
+      await prefs.remove('returning_from_scanner');
+      print("📌 [MainMenuScreen] Voltando de scanner, não redirecionando automaticamente");
+      return;
+    }
 
-    print("📌 [MainMenuScreen] Sessão embarque? "
-        "colegio=$colegioEmbarqueSalvo, "
-        "onibus=$onibusEmbarqueSalvo, "
-        "flowType=$flowTypeEmbarqueSalvo");
+    // VERIFICAÇÃO 1: Sessão de embarque
+    final colegioEmbarque = prefs.getString('colegio');
+    final onibusEmbarque = prefs.getString('onibus');
+    final flowTypeEmbarque = prefs.getString('flowType');
 
-    if (colegioEmbarqueSalvo != null &&
-        onibusEmbarqueSalvo != null &&
-        flowTypeEmbarqueSalvo == 'embarque') {
-      await DataService().loadLocalData(colegioEmbarqueSalvo, onibusEmbarqueSalvo, 'embarque');
+    print("📌 [MainMenuScreen] Verificando sessão embarque:");
+    print("   colegio=$colegioEmbarque");
+    print("   onibus=$onibusEmbarque");
+    print("   flowType=$flowTypeEmbarque");
+
+    if (colegioEmbarque != null &&
+        onibusEmbarque != null &&
+        flowTypeEmbarque == 'embarque') {
+
+      print("✅ [MainMenuScreen] Sessão de embarque encontrada! Retomando...");
+
+      await DataService().loadLocalData(colegioEmbarque, onibusEmbarque);
       final totalAlunos = DataService().passageirosEmbarque.value.length;
+
       if (mounted) {
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => EmbarqueScreen(
-              colegio: colegioEmbarqueSalvo,
-              onibus: onibusEmbarqueSalvo,
+              colegio: colegioEmbarque,
+              onibus: onibusEmbarque,
               totalAlunos: totalAlunos,
             ),
           ),
         );
       }
-      return; // Sessão de embarque encontrada, parar aqui.
+      return; // Parar aqui, sessão de embarque tem prioridade
     }
 
-    // Sessão de cadastro
-    final colegioCadastroSalvo = prefs.getString('colegio_cadastro');
-    final onibusCadastroSalvo = prefs.getString('onibus_cadastro');
-    final flowTypeCadastroSalvo = prefs.getString('flowType_cadastro');
+    // VERIFICAÇÃO 2: Sessão de cadastro (apenas se não há sessão de embarque)
+    final colegioCadastro = prefs.getString('colegio_cadastro');
+    final onibusCadastro = prefs.getString('onibus_cadastro');
+    final flowTypeCadastro = prefs.getString('flowType_cadastro');
 
-    print("📌 [MainMenuScreen] Sessão cadastro? "
-        "colegio=$colegioCadastroSalvo, "
-        "onibus=$onibusCadastroSalvo, "
-        "flowType_cadastro=$flowTypeCadastroSalvo");
+    print("📌 [MainMenuScreen] Verificando sessão cadastro:");
+    print("   colegio_cadastro=$colegioCadastro");
+    print("   onibus_cadastro=$onibusCadastro");
+    print("   flowType_cadastro=$flowTypeCadastro");
 
-    if (colegioCadastroSalvo != null &&
-        onibusCadastroSalvo != null &&
-        flowTypeCadastroSalvo == 'pulseiras') {
-      await CadastroService().loadLocalData(colegioCadastroSalvo, onibusCadastroSalvo);
+    if (colegioCadastro != null &&
+        onibusCadastro != null &&
+        flowTypeCadastro == 'pulseiras') {
+
+      print("✅ [MainMenuScreen] Sessão de cadastro encontrada! Retomando...");
+
+      await CadastroService().loadLocalData(colegioCadastro, onibusCadastro);
+
       if (mounted) {
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => CadastroPulseirasScreen(colegio: colegioCadastroSalvo),
+            builder: (context) => CadastroPulseirasScreen(colegio: colegioCadastro),
           ),
         );
       }
+      return;
     }
+
+    print("📌 [MainMenuScreen] Nenhuma sessão ativa encontrada. Mostrando menu principal.");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFD1D2D1),
-      body: Card(
-        elevation: 8,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-        ),
-        margin: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 40.0),
-              decoration: const BoxDecoration(
-                color: Color(0xFF4C643C),
-              ),
-              child: const Text(
-                'Ehlus',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: Card(
+          elevation: 8,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
+          margin: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 24.0),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF4C643C),
+                      Color(0xFF3A4F2A),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(50.0),
+                      ),
+                      child: const Icon(
+                        Icons.school,
+                        color: Colors.white,
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Ehlus',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sistema de Controle Escolar',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
-                      children: [
-                        ElevatedButton(
+
+              // Body
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Selecione uma opção:',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF4C643C),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+
+                      // Botão Controle Embarque
+                      Container(
+                        width: double.infinity,
+                        height: 80,
+                        child: ElevatedButton.icon(
                           onPressed: () {
+                            print("📌 [MainMenuScreen] Navegando para Controle Embarque");
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => const ControleEmbarqueScreen()),
                             );
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4C643C),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                          icon: const Icon(Icons.directions_bus, size: 32),
+                          label: const Text(
+                            'CONTROLE EMBARQUE',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
                             ),
                           ),
-                          child: const Text('Controle Embarque', style: TextStyle(fontSize: 18, color: Color(0xFF150F0B))),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4C643C),
+                            foregroundColor: Colors.white,
+                            elevation: 8,
+                            shadowColor: const Color(0xFF4C643C).withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Botão Controle Balada
+                      Container(
+                        width: double.infinity,
+                        height: 80,
+                        child: ElevatedButton.icon(
                           onPressed: () {
+                            print("📌 [MainMenuScreen] Navegando para Controle Balada");
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => const SelecaoColegioScreen()),
                             );
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFa3c734),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                          icon: const Icon(Icons.celebration, size: 32),
+                          label: const Text(
+                            'CONTROLE BALADA',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
                             ),
                           ),
-                          child: const Text('Controle Balada', style: TextStyle(fontSize: 18, color: Color(0xFF150F0B))),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFa3c734),
+                            foregroundColor: const Color(0xFF150F0B),
+                            elevation: 8,
+                            shadowColor: const Color(0xFFa3c734).withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Footer info
+                      Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12.0),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'O app salva automaticamente seu progresso durante o uso.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

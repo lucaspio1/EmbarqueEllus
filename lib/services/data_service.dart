@@ -15,20 +15,17 @@ class DataService {
     _loadPendingData();
   }
 
-  // Listas separadas para cada fluxo
+  // APENAS para embarque
   final ValueNotifier<List<Passageiro>> passageirosEmbarque = ValueNotifier([]);
-  final ValueNotifier<List<Passageiro>> passageirosCadastro = ValueNotifier([]);
 
   String _colegioSelecionado = '';
   String _onibusSelecionado = '';
-  String _flowType = '';
   Timer? _syncTimer;
   List<Passageiro> _pendentesDeSincronizacao = [];
 
-  Future<void> fetchData(String colegio, String flowType, {String? onibus}) async {
+  Future<void> fetchData(String colegio, {String? onibus}) async {
     _colegioSelecionado = colegio;
     _onibusSelecionado = onibus ?? '';
-    _flowType = flowType;
 
     try {
       final response = await http.get(Uri.parse('$apiUrl?colegio=$colegio&onibus=$onibus'));
@@ -37,64 +34,42 @@ class DataService {
         final List<Passageiro> fetchedList = List<Passageiro>.from(
             jsonData['passageiros'].map((json) => Passageiro.fromJson(json)));
 
-        fetchedList.forEach((passageiro) => passageiro.flowType = flowType);
-
-        if (_flowType == 'embarque') {
-          passageirosEmbarque.value = fetchedList;
-        } else if (_flowType == 'pulseiras') {
-          passageirosCadastro.value = fetchedList;
-        }
+        fetchedList.forEach((passageiro) => passageiro.flowType = 'embarque');
+        passageirosEmbarque.value = fetchedList;
 
         _pendentesDeSincronizacao.clear();
         _startSyncTimer();
-        print('Dados carregados para $_flowType: $colegio. Timer de sincronização ativo.');
+        print('✅ [DataService] Dados carregados para embarque: $colegio');
       } else {
-        if (_flowType == 'embarque') {
-          passageirosEmbarque.value = [];
-        } else if (_flowType == 'pulseiras') {
-          passageirosCadastro.value = [];
-        }
+        passageirosEmbarque.value = [];
         _stopSyncTimer();
+        print('❌ [DataService] Erro ao buscar dados: ${response.statusCode}');
       }
     } catch (e) {
-      if (_flowType == 'embarque') {
-        passageirosEmbarque.value = [];
-      } else if (_flowType == 'pulseiras') {
-        passageirosCadastro.value = [];
-      }
+      passageirosEmbarque.value = [];
       _stopSyncTimer();
-      print('Erro de conexão ao buscar dados: $e');
+      print('❌ [DataService] Erro de conexão: $e');
     }
   }
 
-  Future<void> saveLocalData(String colegio, String onibus, String flowType, List<Passageiro> lista) async {
+  Future<void> saveLocalData(String colegio, String onibus, List<Passageiro> lista) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('colegio', colegio);
     await prefs.setString('onibus', onibus);
-    await prefs.setString('flowType', flowType);
+    await prefs.setString('flowType', 'embarque');
 
     final listaJson = json.encode(lista.map((p) => p.toJson()).toList());
-    if (flowType == 'embarque') {
-      await prefs.setString('passageiros_embarque_json', listaJson);
-    } else if (flowType == 'pulseiras') {
-      await prefs.setString('passageiros_cadastro_json', listaJson);
-    }
+    await prefs.setString('passageiros_embarque_json', listaJson);
 
-    print('Dados do $flowType e lista de passageiros salvos localmente.');
+    print('📌 [DataService] Dados do embarque salvos localmente.');
   }
 
-  Future<void> loadLocalData(String colegio, String onibus, String flowType) async {
+  Future<void> loadLocalData(String colegio, String onibus) async {
     final prefs = await SharedPreferences.getInstance();
     _colegioSelecionado = colegio;
     _onibusSelecionado = onibus;
-    _flowType = flowType;
 
-    String? listaJson;
-    if (flowType == 'embarque') {
-      listaJson = prefs.getString('passageiros_embarque_json');
-    } else if (flowType == 'pulseiras') {
-      listaJson = prefs.getString('passageiros_cadastro_json');
-    }
+    String? listaJson = prefs.getString('passageiros_embarque_json');
 
     if (listaJson != null) {
       try {
@@ -102,94 +77,67 @@ class DataService {
         final List<Passageiro> loadedList = List<Passageiro>.from(
             jsonData.map((json) => Passageiro.fromJson(json)));
 
-        // CORREÇÃO: Assegura que o flowType é setado após o carregamento local.
-        loadedList.forEach((passageiro) => passageiro.flowType = flowType);
+        loadedList.forEach((passageiro) => passageiro.flowType = 'embarque');
+        passageirosEmbarque.value = loadedList;
 
-        if (flowType == 'embarque') {
-          passageirosEmbarque.value = loadedList;
-        } else if (flowType == 'pulseiras') {
-          passageirosCadastro.value = loadedList;
-        }
-
-        print('Lista de passageiros carregada do armazenamento local para $flowType.');
+        print('✅ [DataService] Lista de embarque carregada do local.');
       } catch (e) {
-        print('Erro ao carregar lista de passageiros local para $flowType: $e');
-        if (flowType == 'embarque') {
-          passageirosEmbarque.value = [];
-        } else if (flowType == 'pulseiras') {
-          passageirosCadastro.value = [];
-        }
+        print('❌ [DataService] Erro ao carregar lista local: $e');
+        passageirosEmbarque.value = [];
       }
     } else {
-      if (flowType == 'embarque') {
-        passageirosEmbarque.value = [];
-      } else if (flowType == 'pulseiras') {
-        passageirosCadastro.value = [];
+      passageirosEmbarque.value = [];
+      print('⚠️ [DataService] Nenhuma lista de embarque encontrada no local.');
+    }
+  }
+
+  void updateLocalData(Passageiro passageiro, {String? novoEmbarque}) {
+    final currentList = List<Passageiro>.from(passageirosEmbarque.value);
+    final index = currentList.indexWhere((p) => p.nome == passageiro.nome);
+
+    if (index != -1) {
+      Passageiro updatedPassageiro = currentList[index].copyWith(
+        embarque: novoEmbarque ?? passageiro.embarque,
+      );
+
+      currentList[index] = updatedPassageiro;
+      passageirosEmbarque.value = currentList;
+
+      _pendentesDeSincronizacao.add(updatedPassageiro);
+      _savePendingData();
+
+      saveLocalData(_colegioSelecionado, _onibusSelecionado, currentList);
+
+      print('📌 [DataService] Embarque atualizado: ${updatedPassageiro.nome} -> ${updatedPassageiro.embarque}');
+
+      if (_syncTimer == null || !_syncTimer!.isActive) {
+        _startSyncTimer();
       }
-      print('Nenhuma lista de passageiros encontrada no armazenamento local para $flowType.');
     }
   }
 
   Future<void> _savePendingData() async {
     final prefs = await SharedPreferences.getInstance();
     final pendingJson = json.encode(_pendentesDeSincronizacao.map((p) => p.toJson()).toList());
-    await prefs.setString('pending_sync_data', pendingJson);
-    print('Lista de sincronização salva localmente.');
+    await prefs.setString('pending_sync_data_embarque', pendingJson);
+    print('📌 [DataService] Lista de sincronização salva (${_pendentesDeSincronizacao.length} itens).');
   }
 
   Future<void> _loadPendingData() async {
     final prefs = await SharedPreferences.getInstance();
-    final pendingJson = prefs.getString('pending_sync_data');
+    final pendingJson = prefs.getString('pending_sync_data_embarque');
     if (pendingJson != null) {
       try {
         final List<dynamic> jsonData = json.decode(pendingJson);
-        _pendentesDeSincronizacao = List<Passageiro>.from(jsonData.map((json) => Passageiro.fromJson(json)));
-        print('Lista de sincronização carregada do armazenamento local. Total: ${_pendentesDeSincronizacao.length}');
+        _pendentesDeSincronizacao = List<Passageiro>.from(
+            jsonData.map((json) => Passageiro.fromJson(json)));
+        print('📌 [DataService] Lista de sincronização carregada (${_pendentesDeSincronizacao.length} itens).');
         if (_pendentesDeSincronizacao.isNotEmpty) {
           _startSyncTimer();
         }
       } catch (e) {
-        print('Erro ao carregar lista de sincronização local: $e');
+        print('❌ [DataService] Erro ao carregar sincronização: $e');
         _pendentesDeSincronizacao.clear();
-      }
-    }
-  }
-
-  void updateLocalData(Passageiro passageiro,
-      {String? novoEmbarque, String? novaPulseira}) {
-    ValueNotifier<List<Passageiro>> targetList;
-    if (passageiro.flowType == 'embarque') {
-      targetList = passageirosEmbarque;
-    } else {
-      targetList = passageirosCadastro;
-    }
-
-    final currentList = List<Passageiro>.from(targetList.value);
-    final index = currentList.indexWhere((p) => p.nome == passageiro.nome);
-
-    if (index != -1) {
-      Passageiro updatedPassageiro = currentList[index].copyWith(
-        embarque: novoEmbarque ?? passageiro.embarque,
-        pulseira: novaPulseira ?? passageiro.pulseira,
-      );
-
-      currentList[index] = updatedPassageiro;
-      targetList.value = currentList;
-
-      _pendentesDeSincronizacao.add(updatedPassageiro);
-      _savePendingData();
-
-      saveLocalData(
-          _colegioSelecionado,
-          _onibusSelecionado,
-          passageiro.flowType!,
-          currentList);
-
-      print('Adicionado à lista de sincronização: ${updatedPassageiro.nome}');
-      print('Total de pendentes: ${_pendentesDeSincronizacao.length}');
-
-      if (_syncTimer == null || !_syncTimer!.isActive) {
-        _startSyncTimer();
       }
     }
   }
@@ -199,19 +147,21 @@ class DataService {
     _syncTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       _syncChanges();
     });
+    print('⏳ [DataService] Timer de sincronização iniciado.');
   }
 
   void _stopSyncTimer() {
     _syncTimer?.cancel();
     _syncTimer = null;
+    print('⏹️ [DataService] Timer de sincronização parado.');
   }
 
   Future<void> _syncChanges() async {
     if (_pendentesDeSincronizacao.isEmpty) {
       _stopSyncTimer();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('pending_sync_data');
-      print('Sincronização concluída. Lista de pendentes limpa.');
+      await prefs.remove('pending_sync_data_embarque');
+      print('✅ [DataService] Sincronização embarque concluída.');
       return;
     }
 
@@ -223,8 +173,7 @@ class DataService {
         'colegio': _colegioSelecionado,
         'nome': passageiroParaSincronizar.nome,
         'novoStatus': passageiroParaSincronizar.embarque,
-        'novaPulseira': passageiroParaSincronizar.pulseira,
-        'operacao': 'geral',
+        'operacao': 'embarque',
       };
 
       final response = await http.post(
@@ -239,19 +188,19 @@ class DataService {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData['status'] == 'sucesso') {
-          print('✅ Sincronização bem-sucedida para: ${passageiroParaSincronizar.nome}');
+          print('✅ [DataService] Sync embarque OK: ${passageiroParaSincronizar.nome}');
         } else {
-          print('❌ Erro na API: ${responseData['mensagem']}');
+          print('❌ [DataService] Erro API: ${responseData['mensagem']}');
           _pendentesDeSincronizacao.add(passageiroParaSincronizar);
           _savePendingData();
         }
       } else if (response.statusCode == 302) {
-        print('⚠️ Redirecionamento 302 ignorado, sincronização considerada concluída para: ${passageiroParaSincronizar.nome}');
+        print('⚠️ [DataService] Redirecionamento 302 ignorado, sync OK: ${passageiroParaSincronizar.nome}');
       } else {
         throw Exception('HTTP Error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Erro ao sincronizar dados: $e');
+      print('❌ [DataService] Erro ao sincronizar embarque: $e');
       _pendentesDeSincronizacao.add(passageiroParaSincronizar);
       _savePendingData();
     }
