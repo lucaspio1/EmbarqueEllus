@@ -1,3 +1,4 @@
+// main_menu_screen.dart
 import 'package:flutter/material.dart';
 import 'package:embarque_app/screens/selecao_colegio_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,8 @@ import 'package:embarque_app/screens/embarque_screen.dart';
 import 'package:embarque_app/screens/controle_embarque_screen.dart';
 import 'package:embarque_app/screens/cadastro_pulseiras_screen.dart';
 import 'package:embarque_app/services/cadastro_service.dart';
+// Importe a tela de controle de balada
+import 'package:embarque_app/screens/controle_balada_screen.dart'; // <-- Adicione esta linha
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -141,7 +144,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Ehlus',
+                      'Ellus',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -152,7 +155,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Sistema de Controle Escolar',
+                      'Educação e Turismo',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white70,
@@ -224,9 +227,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () {
                             print("📌 [MainMenuScreen] Navegando para Controle Balada");
+                            // Altere a navegação aqui para a nova tela
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const SelecaoColegioScreen()),
+                              MaterialPageRoute(builder: (context) => const ControleBaladaScreen()), // <-- Altere esta linha
                             );
                           },
                           icon: const Icon(Icons.celebration, size: 32),

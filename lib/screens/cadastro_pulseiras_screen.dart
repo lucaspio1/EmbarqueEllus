@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:embarque_app/models/passageiro.dart';
-import 'package:embarque_app/screens/scanner_screen.dart';
+import 'package:embarque_app/screens/PulseirasScannerScreen.dart';
 import 'package:embarque_app/main.dart';
 import 'package:embarque_app/services/cadastro_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';

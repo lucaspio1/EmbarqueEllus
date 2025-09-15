@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:embarque_app/screens/onibus_scanner_screen.dart';
-import 'package:embarque_app/screens/pulseiras_scanner_screen.dart';
+import 'package:embarque_app/screens/OnibusScannerCadastroScreen.dart';
 
 class MenuColegioScreen extends StatelessWidget {
   final String colegio;

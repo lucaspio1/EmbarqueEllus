@@ -4,7 +4,7 @@ import 'package:embarque_app/screens/cadastro_pulseiras_screen.dart';
 import 'package:embarque_app/services/data_service.dart';
 import 'package:embarque_app/screens/embarque_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:embarque_app/screens/pulseiras_scanner_screen.dart';
+import 'package:embarque_app/screens/OnibusScannerCadastroScreen.dart';
 import 'package:embarque_app/services/cadastro_service.dart';
 
 class ControleEmbarqueScreen extends StatelessWidget {

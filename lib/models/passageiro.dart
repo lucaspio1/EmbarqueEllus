@@ -9,7 +9,8 @@ class Passageiro {
   final String embarque;
   final String pulseira;
   final String foto;
-  String? flowType; // Adicionei o flowType aqui
+  final String statusQuarto; // Novo campo
+  String? flowType;
 
   Passageiro({
     required this.colegio,
@@ -20,6 +21,7 @@ class Passageiro {
     required this.embarque,
     required this.pulseira,
     required this.foto,
+    this.statusQuarto = '', // Valor padrão vazio
     this.flowType,
   });
 
@@ -33,7 +35,8 @@ class Passageiro {
       embarque: json['embarque']?.toString() ?? '',
       pulseira: json['pulseira']?.toString() ?? '',
       foto: json['foto']?.toString() ?? '',
-      flowType: json['flowType']?.toString(), // CORREÇÃO: Adicionar leitura do flowType
+      statusQuarto: json['statusQuarto']?.toString() ?? '', // Novo campo
+      flowType: json['flowType']?.toString(),
     );
   }
 
@@ -47,7 +50,8 @@ class Passageiro {
       'embarque': embarque,
       'pulseira': pulseira,
       'foto': foto,
-      'flowType': flowType, // CORREÇÃO: Adicionar o flowType no JSON
+      'statusQuarto': statusQuarto, // Novo campo
+      'flowType': flowType,
     };
   }
 
@@ -60,6 +64,7 @@ class Passageiro {
     String? embarque,
     String? pulseira,
     String? foto,
+    String? statusQuarto, // Novo campo
     String? flowType,
   }) {
     return Passageiro(
@@ -71,7 +76,14 @@ class Passageiro {
       embarque: embarque ?? this.embarque,
       pulseira: pulseira ?? this.pulseira,
       foto: foto ?? this.foto,
+      statusQuarto: statusQuarto ?? this.statusQuarto, // Novo campo
       flowType: flowType ?? this.flowType,
     );
   }
+
+  // Métodos auxiliares para verificar status
+  bool get estaNaBalada => statusQuarto.toUpperCase() != 'ON';
+  bool get estaNoQuarto => statusQuarto.toUpperCase() == 'ON';
+  bool get jaEmbarcou => embarque.toUpperCase() == 'SIM';
+  bool get temPulseira => pulseira.isNotEmpty && pulseira != 'Não Informado';
 }
